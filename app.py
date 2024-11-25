@@ -20,15 +20,16 @@ def get_size():
             url = 'http://' + url
 
         # Fetch the main HTML document
-        response = requests.get(url, stream=True)
+        response = requests.get(url)
         if response.status_code != 200:
             return jsonify({"error": f"Failed to fetch URL (status: {response.status_code})"}), 400
 
-        # Calculate HTML size
-        html_size_bytes = sum(len(chunk) for chunk in response.iter_content(1024))
+        # Get the HTML content and its size
+        html_content = response.content  # Read content once
+        html_size_bytes = len(html_content)
 
         # Parse HTML to find external resources
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
 
         # Fetch and calculate sizes for all external assets
