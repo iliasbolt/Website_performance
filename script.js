@@ -7,9 +7,13 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json','Access-Control-Allow-Origin': '*','Accept': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            mode: 'cors', // Allow cross-origin requests
             body: JSON.stringify({ url })
         });
+
         const data = await response.json();
         document.getElementById('result').innerText = data.error 
             ? `Error: ${data.error}` 
