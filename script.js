@@ -10,14 +10,20 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             headers: {
                 'Content-Type': 'application/json',
             },
-            mode: 'cors', // stop Allow cross-origin requests
+            mode: 'cors',
             body: JSON.stringify({ url })
         });
 
         const data = await response.json();
-        document.getElementById('result').innerText = data.error 
-            ? `Error: ${data.error}` 
-            : `Page size: ${data.size_mb} MB`;
+
+        if (data.error) {
+            document.getElementById('result').innerText = `Error: ${data.error}`;
+        } else {
+            document.getElementById('result').innerHTML = `
+                <p>HTML Size: ${data.html_size_mb} MB</p>
+                <p>Total Page Size: ${data.total_size_mb} MB</p>
+            `;
+        }
     } catch (error) {
         document.getElementById('result').innerText = 'An unexpected error occurred!';
     }
