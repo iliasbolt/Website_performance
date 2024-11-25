@@ -7,6 +7,16 @@ from urllib.parse import urljoin
 app = Flask(__name__)
 CORS(app, origins="https://website-performance-front.onrender.com", support_credentials=True)
 
+@app.before_request
+def handle_options():
+    if request.method == 'OPTIONS':
+        response = jsonify({'message': 'OK'})
+        response.headers.add('Access-Control-Allow-Origin', 'https://website-performance-front.onrender.com')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+
 @app.route('/get_size', methods=['POST'])
 def get_size():
     try:
