@@ -1,4 +1,4 @@
-const API_URL = 'https://your-backend-service.onrender.com/get_size'; // Replace with backend URL
+const API_URL = 'https://website-performance-backend.onrender.com/get_size'; // Replace with backend URL
 
 document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -7,9 +7,13 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            mode: 'no-cors', // stop Allow cross-origin requests
             body: JSON.stringify({ url })
         });
+
         const data = await response.json();
         document.getElementById('result').innerText = data.error 
             ? `Error: ${data.error}` 

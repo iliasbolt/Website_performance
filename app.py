@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 @app.route('/get_size', methods=['POST'])
 def get_size():
@@ -11,7 +13,6 @@ def get_size():
         if not url:
             return jsonify({"error": "URL is required"}), 400
         
-        # Add http if not included
         if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
 
