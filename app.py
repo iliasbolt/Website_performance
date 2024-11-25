@@ -5,6 +5,8 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 app = Flask(__name__)
+
+# CORS configuration should be added here
 CORS(app, origins="https://website-performance-front.onrender.com", support_credentials=True)
 
 @app.before_request
@@ -29,26 +31,20 @@ def get_size():
         if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
 
-        # Fetch the main HTML document
         response = requests.get(url)
         if response.status_code != 200:
             return jsonify({"error": f"Failed to fetch URL (status: {response.status_code})"}), 400
 
-        # Get the HTML content and its size
-        html_content = response.content  # Read content once
+        html_content = response.content
         html_size_bytes = len(html_content)
-
-        # Parse HTML to find external resources
         soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
 
-        # Fetch and calculate sizes for all external assets
         for tag in soup.find_all(['img', 'link', 'script']):
             attr = 'src' if tag.name in ['img', 'script'] else 'href'
             resource_url = tag.get(attr)
 
             if resource_url:
-                # Build absolute URL
                 resource_url = urljoin(url, resource_url)
 
                 try:
@@ -56,9 +52,8 @@ def get_size():
                     if res.status_code == 200:
                         total_size_bytes += sum(len(chunk) for chunk in res.iter_content(1024))
                 except requests.RequestException:
-                    continue  # Ignore failed requests for assets
+                    continue
 
-        # Convert sizes to MB
         html_size_mb = round(html_size_bytes / (1024 * 1024), 2)
         total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
 
