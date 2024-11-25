@@ -28,7 +28,8 @@ def get_size():
         
 
         # Convert to MB (1 MB = 1024 * 1024 bytes)
-        size_mb = round(total_size_bytes / (1024 * 1024), 2)
+        #size_mb = round(total_size_bytes / (1024 * 1024), 2)
+        size_mb = round(total_size_bytes, 2)
         
         return jsonify({"size_mb": size_mb})
     except Exception as e:
