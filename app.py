@@ -25,11 +25,12 @@ def get_size():
 
         # Calculate total size in bytes
         total_size_bytes = sum(len(chunk) for chunk in response.iter_content(1024))
-        print('Size == > '+ total_size_bytes)
+        
 
         # Convert to MB (1 MB = 1024 * 1024 bytes)
-        size_mb = round(total_size_bytes / (1024 * 1024), 2)
-        print('Size Return == > '+ size_mb)
+        #size_mb = round(total_size_bytes / (1024 * 1024), 2)
+        size_mb = round(total_size_bytes, 2)
+        
         return jsonify({"size_mb": size_mb})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
