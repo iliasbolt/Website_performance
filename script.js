@@ -1,4 +1,4 @@
-const API_URL = 'https://website-performance-backend.onrender.com/get_size'; // Replace with backend URL
+const API_URL = 'https://cors-anywhere.herokuapp.com/https://website-performance-backend.onrender.com/get_size'; // Replace with backend URL
 
 document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
