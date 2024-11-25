@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS
+CORS(app, resources={r"/*": {"origins": "*"}}) # Enable CORS
 
 @app.route('/get_size', methods=['POST'])
 def get_size():
