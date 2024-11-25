@@ -10,7 +10,6 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             headers: {
                 'Content-Type': 'application/json',
             },
-            mode: 'cors',
             body: JSON.stringify({ url })
         });
 
