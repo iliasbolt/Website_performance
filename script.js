@@ -1,4 +1,4 @@
-const API_URL = 'https://website-performance-backend.onrender.com/get_size'; // Replace with backend URL
+const API_URL = 'https://website-performance-backend.onrender.com/get_size'; 
 
 document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -24,6 +24,6 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             `;
         }
     } catch (error) {
-        document.getElementById('result').innerText = 'An unexpected error occurred!';
+        document.getElementById('result').innerText = 'An unexpected error occurred!'+ error;
     }
 });
