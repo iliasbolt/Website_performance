@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = 'https://website-performance-front.onrender.com'
+    response.headers['Access-Control-Allow-Origin'] = 'https://frontend-pdxs.onrender.com'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
