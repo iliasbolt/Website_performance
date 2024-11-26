@@ -10,7 +10,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url: url })
         });
 
         const data = await response.json();
