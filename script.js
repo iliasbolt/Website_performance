@@ -1,4 +1,4 @@
-const API_URL = 'https://website-performance-backend.onrender.com/get_size'; 
+const API_URL = 'https://backend-2qtn.onrender.com/get_size'; 
 
 document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) => {
     e.preventDefault();

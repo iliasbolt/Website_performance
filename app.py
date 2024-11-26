@@ -5,17 +5,14 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 app = Flask(__name__)
-CORS(app, origins="https://website-performance-front.onrender.com", support_credentials=True)
 
-@app.before_request
-def handle_options():
-    if request.method == 'OPTIONS':
-        response = jsonify({'message': 'OK'})
-        response.headers.add('Access-Control-Allow-Origin', 'https://website-performance-front.onrender.com')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = 'https://frontend-pdxs.onrender.com'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 @app.route('/get_size', methods=['POST'])
 def get_size():
