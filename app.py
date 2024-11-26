@@ -60,7 +60,7 @@ def get_size():
             if resource_url:
                 resource_url = urljoin(url, resource_url)
                 try:
-                    res = requests.get(resource_url, stream=True, timeout=5)
+                    res = requests.get(resource_url, stream=True, timeout=100)
                     if res.status_code == 200:
                         total_size_bytes += sum(len(chunk) for chunk in res.iter_content(1024))
                     else:
