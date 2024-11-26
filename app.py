@@ -8,10 +8,16 @@ app = Flask(__name__)
 
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = 'https://frontend-pdxs.onrender.com'
+    response.headers['Access-Control-Allow-Origin'] = 'https://website-performance-front.onrender.com'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Pragma'] = 'no-cache'
+    
+    # If it's a preflight request, return 200 status
+    if request.method == 'OPTIONS':
+        response.status_code = 200
     return response
 
 @app.route('/get_size', methods=['POST'])
