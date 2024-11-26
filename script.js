@@ -12,7 +12,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             },
             body: JSON.stringify({ url: url })
         });
-
+        alert(response.json());
         const data = await response.json();
 
         if (data.error) {
