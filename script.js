@@ -24,6 +24,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             `;
         }
     } catch (error) {
+        alert(error);
         document.getElementById('result').innerText = 'An unexpected error occurred!'+ error;
     }
 });
