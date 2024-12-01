@@ -57,6 +57,12 @@ def get_size():
         total_size_bytes = html_size_bytes
         resource_tags = {'img': 'src', 'link': 'href', 'script': 'src'}
 
+        # Initialize resource categories
+        images = []
+        css = []
+        js = []
+        external_resources = []
+
         # List to store resource URLs
         resource_urls = []
 
@@ -74,31 +80,52 @@ def get_size():
         # Use ThreadPoolExecutor to fetch resources concurrently
         with concurrent.futures.ThreadPoolExecutor() as executor:
             resource_sizes = list(executor.map(fetch_resource_size, resource_urls))
-            total_size_bytes += sum(resource_sizes)
 
-        # Calculate sizes in MB
-        html_size_mb = round(html_size_bytes / (1024 * 1024), 2)
-        total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
+        # Categorize resources and calculate sizes
+        for url, size in zip(resource_urls, resource_sizes):
+            if url.endswith(('jpg', 'jpeg', 'png', 'gif', 'svg')):
+                images.append({'url': url, 'size': size})
+            elif url.endswith('css'):
+                css.append({'url': url, 'size': size})
+            elif url.endswith('js'):
+                js.append({'url': url, 'size': size})
+            else:
+                external_resources.append({'url': url, 'size': size})
 
-        # Prepare resource sizes for images, CSS, and JS
-        images_size = sum(size for url, size in zip(resource_urls, resource_sizes) if url.endswith(('jpg', 'jpeg', 'png', 'gif', 'svg')))
-        css_size = sum(size for url, size in zip(resource_urls, resource_sizes) if url.endswith('css'))
-        js_size = sum(size for url, size in zip(resource_urls, resource_sizes) if url.endswith('js'))
+        # Calculate total sizes for each category
+        images_size = sum(image['size'] for image in images)
+        css_size = sum(style['size'] for style in css)
+        js_size = sum(script['size'] for script in js)
+        external_size = sum(resource['size'] for resource in external_resources)
 
         images_size_mb = round(images_size / (1024 * 1024), 2)
         css_size_mb = round(css_size / (1024 * 1024), 2)
         js_size_mb = round(js_size / (1024 * 1024), 2)
+        external_size_mb = round(external_size / (1024 * 1024), 2)
 
-        logger.info("HTML size: %s MB, Images size: %s MB, CSS size: %s MB, JS size: %s MB, Total page size: %s MB",
-                     html_size_mb, images_size_mb, css_size_mb, js_size_mb, total_size_mb)
+        # Total size
+        total_size_bytes = html_size_bytes + images_size + css_size + js_size + external_size
+        total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
 
-        return jsonify({
-            "html_size_mb": html_size_mb,
+        # Prepare resource breakdown
+        resource_breakdown = {
+            "html_size_mb": round(html_size_bytes / (1024 * 1024), 2),
+            "images": images,
+            "css": css,
+            "js": js,
+            "external_resources": external_resources,
             "images_size_mb": images_size_mb,
             "css_size_mb": css_size_mb,
             "js_size_mb": js_size_mb,
+            "external_size_mb": external_size_mb,
             "total_size_mb": total_size_mb
-        })
+        }
+
+        logger.info("HTML size: %s MB, Images size: %s MB, CSS size: %s MB, JS size: %s MB, External resources size: %s MB, Total page size: %s MB",
+                     resource_breakdown['html_size_mb'], resource_breakdown['images_size_mb'], resource_breakdown['css_size_mb'],
+                     resource_breakdown['js_size_mb'], resource_breakdown['external_size_mb'], resource_breakdown['total_size_mb'])
+
+        return jsonify(resource_breakdown)
 
     except requests.RequestException as e:
         logger.error("Request error: %s", e)
