@@ -14,28 +14,26 @@ logger = logging.getLogger(__name__)
 
 @app.after_request
 def add_cors_headers(response):
-    # Add CORS headers to every response
     response.headers.add("Access-Control-Allow-Origin", "*")
     response.headers.add("Access-Control-Allow-Headers", "*")
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
 # Helper function to fetch resource size
-def fetch_resource_size(resource_url, resource_urls_to_check):
+def fetch_resource_size(resource_url, processed_urls):
+    # Check if resource has already been processed to avoid duplication
+    if resource_url in processed_urls:
+        return 0  # Skip if already processed
+    
+    processed_urls.add(resource_url)  # Mark the resource as processed
+
     try:
-        # Only fetch if the resource is in the list
-        if resource_url in resource_urls_to_check:
-            logger.debug("Fetching resource: %s", resource_url)
-            resource_response = requests.get(resource_url, timeout=5, stream=True)
-            resource_response.raise_for_status()
-            # Calculate the size of the resource
-            size = sum(len(chunk) for chunk in resource_response.iter_content(1024))
-            logger.debug("Fetched resource %s, size: %d bytes", resource_url, size)
-            # Remove the resource from the list after fetching
-            resource_urls_to_check.remove(resource_url)
-            return size
-        else:
-            return 0
+        resource_response = requests.get(resource_url, timeout=5, stream=True)
+        resource_response.raise_for_status()
+        # Calculate the size of the resource by summing up the chunks
+        size = sum(len(chunk) for chunk in resource_response.iter_content(1024))
+        logger.debug("Fetched resource: %s, size: %d bytes", resource_url, size)
+        return size
     except requests.RequestException as e:
         logger.warning("Failed to fetch %s: %s", resource_url, e)
         return 0
@@ -43,16 +41,15 @@ def fetch_resource_size(resource_url, resource_urls_to_check):
 @app.route('/get_size', methods=['POST'])
 def get_size():
     try:
-        # Parse JSON
+        # Parse JSON request data
         data = request.get_json()
-        logger.debug("Received request data: %s", data)
-        
         url = data.get('url')
+        
         if not url:
             logger.error("URL is missing")
             return jsonify({"error": "URL is required"}), 400
 
-        # Normalize URL
+        # Normalize the URL if necessary
         if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
         logger.debug("Fetching URL: %s", url)
@@ -64,24 +61,25 @@ def get_size():
         html_size_bytes = len(html_content.encode('utf-8'))
         logger.debug("HTML size in bytes: %d", html_size_bytes)
 
-        # Parse and fetch resources
+        # Parse the page to extract all resource URLs
         soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
+        processed_urls = set()  # To track URLs we've already processed
 
-        # Prepare list of resource URLs to fetch concurrently (no duplicates)
+        # Resource tags to consider for fetching external resources
         resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
-        resource_urls_to_check = set()  # Using a set to prevent duplicates
+        resource_urls = []
 
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
                 if resource_url:
                     full_url = urljoin(url, resource_url)
-                    resource_urls_to_check.add(full_url)
+                    resource_urls.append(full_url)
 
         # Use ThreadPoolExecutor to fetch resources concurrently
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            resource_sizes = list(executor.map(lambda url: fetch_resource_size(url, resource_urls_to_check), resource_urls_to_check))
+            resource_sizes = list(executor.map(fetch_resource_size, resource_urls, [processed_urls]*len(resource_urls)))
             total_size_bytes += sum(resource_sizes)
 
         # Convert sizes to MB
