@@ -74,7 +74,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             resultHTML += `</ul>`;
             
             // Update the result container with the HTML content
-            document.getElementById('result').innerHTML = resultHTML;
+            //document.getElementById('result').innerHTML = resultHTML;
         }
     } catch (error) {
         // Handle any unexpected errors
