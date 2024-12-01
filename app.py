@@ -19,20 +19,17 @@ def add_cors_headers(response):
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
-# Helper function to fetch resource size, skipping base64-encoded resources
-def fetch_resource_size(resource_url):
-    # Skip base64-encoded resources
-    if resource_url.startswith('data:'):
-        logger.debug("Skipping base64 resource: %s", resource_url)
-        return 0
-
+# Helper function to fetch resource size
+def fetch_resource_size(resource_url, processed_urls):
+    if resource_url in processed_urls:
+        return 0  # Skip this resource if it's already been processed
     try:
         resource_response = requests.get(resource_url, timeout=5, stream=True)
         resource_response.raise_for_status()
+        # Mark the resource as processed
+        processed_urls.add(resource_url)
         # Calculate the size of the resource
-        resource_size = sum(len(chunk) for chunk in resource_response.iter_content(1024))
-        logger.debug("Fetched resource: %s, Size: %d bytes", resource_url, resource_size)
-        return resource_size
+        return sum(len(chunk) for chunk in resource_response.iter_content(1024))
     except requests.RequestException as e:
         logger.warning("Failed to fetch %s: %s", resource_url, e)
         return 0
@@ -61,35 +58,26 @@ def get_size():
         html_size_bytes = len(html_content.encode('utf-8'))
         logger.debug("HTML size in bytes: %d", html_size_bytes)
 
-        # Parse the HTML content
+        # Parse and fetch resources
         soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
+        processed_urls = set()  # Set to keep track of processed resource URLs
 
-        # List of tags and their attributes for external resources
+        # Prepare list of resource URLs to fetch
         resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
-        resource_urls = set()  # Using set to avoid duplicate URLs
+        resource_urls = []
 
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
                 if resource_url:
                     full_url = urljoin(url, resource_url)
-                    resource_urls.add(full_url)
+                    resource_urls.append(full_url)
 
-        # Fetch resources concurrently
+        # Use ThreadPoolExecutor to fetch resources concurrently
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            resource_sizes = list(executor.map(fetch_resource_size, resource_urls))
+            resource_sizes = list(executor.map(lambda url: fetch_resource_size(url, processed_urls), resource_urls))
             total_size_bytes += sum(resource_sizes)
-
-        # Exclude certain resources like favicons and tracking scripts
-        exclude_resources = [
-            'favicon.ico',
-            'analytics.js',  # Example: Exclude Google Analytics or similar scripts
-            'adsbygoogle.js',  # Example: Exclude ad scripts
-        ]
-
-        # Exclude resources that match the patterns above
-        total_size_bytes = sum(size for url, size in zip(resource_urls, resource_sizes) if not any(exclude in url for exclude in exclude_resources))
 
         # Convert sizes to MB
         html_size_mb = round(html_size_bytes / (1024 * 1024), 2)
