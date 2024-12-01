@@ -1,20 +1,24 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 app = Flask(__name__)
-cors = CORS(app)
+
+# Enable CORS for specific origins
+CORS(app, resources={r"/*": {"origins": ["https://frontend-pdxs.onrender.com"]}})
 
 @app.after_request
 def add_cors_headers(response):
-    response  = make_response()
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "*")
-    response.headers.add("Access-Control-Allow-Methods", "*")
+    """
+    Add CORS headers after every request.
+    """
+    response.headers.add("Access-Control-Allow-Origin", "https://frontend-pdxs.onrender.com")
+    response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
     return response
-
 
 @app.route('/get_size', methods=['POST'])
 def get_size():
@@ -73,10 +77,12 @@ def get_size():
         total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
 
         # Return the results
-        return jsonify({
+        response = jsonify({
             "html_size_mb": html_size_mb,
             "total_size_mb": total_size_mb
         })
+        response.headers.add("Access-Control-Allow-Origin", "https://frontend-pdxs.onrender.com")
+        return response
 
     except requests.RequestException as e:
         return jsonify({"error": f"Request error: {str(e)}"}), 500
