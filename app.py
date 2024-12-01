@@ -58,15 +58,20 @@ def get_size():
         html_size_bytes = len(html_content.encode('utf-8'))
         logger.debug("HTML size in bytes: %d", html_size_bytes)
 
-        # Parse and fetch resources
+        # Parse and fetch resources (only images, CSS, and JS)
         soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
         processed_urls = set()  # Set to keep track of processed resource URLs
 
-        # Prepare list of resource URLs to fetch
-        resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
-        resource_urls = []
+        # Define the resource tags to track
+        resource_tags = {
+            'img': 'src',   # Images
+            'script': 'src',  # JavaScript
+            'link': 'href',   # CSS
+        }
 
+        # Prepare list of resource URLs to fetch
+        resource_urls = []
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
