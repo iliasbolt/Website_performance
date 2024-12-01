@@ -20,7 +20,7 @@ def add_cors_headers(response):
     return response
 
 # Helper function to fetch resource size
-def fetch_resource_size(resource_url, processed_urls):
+def fetch_resource_size(resource_url, processed_urls, resource_type):
     # Check if resource has already been processed to avoid duplication
     if resource_url in processed_urls:
         logger.debug("Skipping already processed URL: %s", resource_url)
@@ -33,7 +33,7 @@ def fetch_resource_size(resource_url, processed_urls):
         resource_response.raise_for_status()
         # Calculate the size of the resource by summing up the chunks
         size = sum(len(chunk) for chunk in resource_response.iter_content(1024))
-        logger.debug("Fetched resource: %s, size: %d bytes", resource_url, size)
+        logger.debug(f"Fetched {resource_type} resource: %s, size: %d bytes", resource_url, size)
         return size
     except requests.RequestException as e:
         logger.warning("Failed to fetch %s: %s", resource_url, e)
@@ -55,7 +55,7 @@ def get_size():
             url = 'http://' + url
         logger.debug("Fetching URL: %s", url)
 
-        # Fetch main page content
+        # Fetch main page content (HTML)
         main_response = requests.get(url, timeout=10)
         main_response.raise_for_status()
         html_content = main_response.text
@@ -64,35 +64,65 @@ def get_size():
 
         # Parse the page to extract all resource URLs
         soup = BeautifulSoup(html_content, 'html.parser')
-        total_size_bytes = html_size_bytes
+        
+        # Initialize counters for each resource category
+        html_size = html_size_bytes
+        images_size = 0
+        css_size = 0
+        js_size = 0
         processed_urls = set()  # To track URLs we've already processed
 
         # Resource tags to consider for fetching external resources
         resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
-        resource_urls = []
+        resource_urls = {
+            'images': [],
+            'css': [],
+            'js': []
+        }
 
-        # Prepare the list of resources to fetch, checking for duplicates before adding to the list
+        # Categorize resources into images, CSS, and JS
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
                 if resource_url:
                     full_url = urljoin(url, resource_url)
-                    # Only add URL to list if it hasn't been processed already
                     if full_url not in processed_urls:
                         processed_urls.add(full_url)
-                        resource_urls.append(full_url)
+                        if tag == 'img':  # Categorize images
+                            resource_urls['images'].append(full_url)
+                        elif tag == 'link' and 'stylesheet' in element.get('rel', []):  # Categorize CSS
+                            resource_urls['css'].append(full_url)
+                        elif tag == 'script':  # Categorize JS
+                            resource_urls['js'].append(full_url)
+
+        # Log the resources we're about to fetch
+        logger.debug("Resources to fetch: %s", resource_urls)
 
         # Use ThreadPoolExecutor to fetch resources concurrently
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            resource_sizes = list(executor.map(fetch_resource_size, resource_urls, [processed_urls]*len(resource_urls)))
-            total_size_bytes += sum(resource_sizes)
+            # Fetch images, CSS, and JS sizes separately
+            images_size = sum(executor.map(fetch_resource_size, resource_urls['images'], [processed_urls]*len(resource_urls['images']), ['image']*len(resource_urls['images'])))
+            css_size = sum(executor.map(fetch_resource_size, resource_urls['css'], [processed_urls]*len(resource_urls['css']), ['css']*len(resource_urls['css'])))
+            js_size = sum(executor.map(fetch_resource_size, resource_urls['js'], [processed_urls]*len(resource_urls['js']), ['js']*len(resource_urls['js'])))
+
+        total_size_bytes = html_size + images_size + css_size + js_size
 
         # Convert sizes to MB
-        html_size_mb = round(html_size_bytes / (1024 * 1024), 2)
+        html_size_mb = round(html_size / (1024 * 1024), 2)
+        images_size_mb = round(images_size / (1024 * 1024), 2)
+        css_size_mb = round(css_size / (1024 * 1024), 2)
+        js_size_mb = round(js_size / (1024 * 1024), 2)
         total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
 
-        logger.info("HTML size: %s MB, Total page size: %s MB", html_size_mb, total_size_mb)
-        return jsonify({"html_size_mb": html_size_mb, "total_size_mb": total_size_mb})
+        logger.info(f"HTML size: {html_size_mb} MB, Images size: {images_size_mb} MB, CSS size: {css_size_mb} MB, JS size: {js_size_mb} MB, Total page size: {total_size_mb} MB")
+
+        return jsonify({
+            "html_size_mb": html_size_mb,
+            "images_size_mb": images_size_mb,
+            "css_size_mb": css_size_mb,
+            "js_size_mb": js_size_mb,
+            "total_size_mb": total_size_mb
+        })
 
     except requests.RequestException as e:
         logger.error("Request error: %s", e)
