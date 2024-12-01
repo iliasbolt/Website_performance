@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 @app.after_request
 def add_cors_headers(response):
+    # Add CORS headers to every response
     response.headers.add("Access-Control-Allow-Origin", "*")
     response.headers.add("Access-Control-Allow-Headers", "*")
     response.headers.add("Access-Control-Allow-Methods", "*")
