@@ -33,7 +33,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
                 <p>Images Size: ${data.images_size_mb} MB</p>
                 <p>CSS Size: ${data.css_size_mb} MB</p>
                 <p>JavaScript Size: ${data.js_size_mb} MB</p>
-                <p>Total Page Size: ${data.total_size_mb} MB</p>
+                <p>Total Page Size: ${data.html_size_mb + data.images_size_mb + data.css_size_mb + data.js_size_mb} MB</p>
             `;
         }
     } catch (error) {
