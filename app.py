@@ -5,7 +5,6 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import logging
 import concurrent.futures
-import re
 
 app = Flask(__name__)
 CORS(app)
@@ -20,31 +19,20 @@ def add_cors_headers(response):
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
-def calculate_base64_size(base64_str):
-    """Calculate the size of base64-encoded data"""
-    match = re.match(r"^data:image/.+;base64,(.*)", base64_str)
-    if match:
-        base64_data = match.group(1)
-        return len(base64_data) * 3 / 4  # Estimate size in bytes
-    return 0
-
-def fetch_css_and_find_resources(css_url):
-    """Fetch external CSS file and find image resources in it"""
-    css_response = requests.get(css_url)
-    css_response.raise_for_status()
-    css_content = css_response.text
-
-    # Find background images or other resources in the CSS
-    image_urls = re.findall(r'url\(["\']?(https?://[^"\']+)', css_content)
-    return image_urls
-
-# Helper function to fetch resource size
+# Helper function to fetch resource size, skipping base64-encoded resources
 def fetch_resource_size(resource_url):
+    # Skip base64-encoded resources
+    if resource_url.startswith('data:'):
+        logger.debug("Skipping base64 resource: %s", resource_url)
+        return 0
+
     try:
         resource_response = requests.get(resource_url, timeout=5, stream=True)
         resource_response.raise_for_status()
         # Calculate the size of the resource
-        return sum(len(chunk) for chunk in resource_response.iter_content(1024))
+        resource_size = sum(len(chunk) for chunk in resource_response.iter_content(1024))
+        logger.debug("Fetched resource: %s, Size: %d bytes", resource_url, resource_size)
+        return resource_size
     except requests.RequestException as e:
         logger.warning("Failed to fetch %s: %s", resource_url, e)
         return 0
@@ -62,7 +50,7 @@ def get_size():
             return jsonify({"error": "URL is required"}), 400
 
         # Normalize URL
-        if not url.startswith(('http://', 'https://')): 
+        if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
         logger.debug("Fetching URL: %s", url)
 
@@ -73,53 +61,35 @@ def get_size():
         html_size_bytes = len(html_content.encode('utf-8'))
         logger.debug("HTML size in bytes: %d", html_size_bytes)
 
-        # Initialize total size with HTML size
+        # Parse the HTML content
+        soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
 
-        # Parse HTML content
-        soup = BeautifulSoup(html_content, 'html.parser')
-
-        # Array to track resources we need to check
-        resource_urls = []
-        fetched_resources = set()
-
-        # Resource tags (img, script, link)
+        # List of tags and their attributes for external resources
         resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
+        resource_urls = set()  # Using set to avoid duplicate URLs
+
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
                 if resource_url:
                     full_url = urljoin(url, resource_url)
-                    if full_url not in fetched_resources:
-                        fetched_resources.add(full_url)
-                        resource_urls.append(full_url)
+                    resource_urls.add(full_url)
 
-        # Check for base64-encoded images
-        for img_tag in soup.find_all('img'):
-            src = img_tag.get('src')
-            if src and src.startswith('data:image/'):
-                base64_size = calculate_base64_size(src)
-                total_size_bytes += base64_size
-                logger.debug("Base64 image size: %d bytes", base64_size)
-
-        # Check for resources in external CSS files
-        for link_tag in soup.find_all('link', {'rel': 'stylesheet'}):
-            href = link_tag.get('href')
-            if href:
-                full_url = urljoin(url, href)
-                try:
-                    css_images = fetch_css_and_find_resources(full_url)
-                    for image_url in css_images:
-                        if image_url not in fetched_resources:
-                            fetched_resources.add(image_url)
-                            resource_urls.append(image_url)
-                except requests.RequestException as e:
-                    logger.warning("Failed to fetch CSS resource %s: %s", full_url, e)
-
-        # Use ThreadPoolExecutor to fetch resources concurrently
+        # Fetch resources concurrently
         with concurrent.futures.ThreadPoolExecutor() as executor:
             resource_sizes = list(executor.map(fetch_resource_size, resource_urls))
             total_size_bytes += sum(resource_sizes)
+
+        # Exclude certain resources like favicons and tracking scripts
+        exclude_resources = [
+            'favicon.ico',
+            'analytics.js',  # Example: Exclude Google Analytics or similar scripts
+            'adsbygoogle.js',  # Example: Exclude ad scripts
+        ]
+
+        # Exclude resources that match the patterns above
+        total_size_bytes = sum(size for url, size in zip(resource_urls, resource_sizes) if not any(exclude in url for exclude in exclude_resources))
 
         # Convert sizes to MB
         html_size_mb = round(html_size_bytes / (1024 * 1024), 2)
