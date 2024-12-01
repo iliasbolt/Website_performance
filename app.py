@@ -23,8 +23,9 @@ def add_cors_headers(response):
 def fetch_resource_size(resource_url, processed_urls):
     # Check if resource has already been processed to avoid duplication
     if resource_url in processed_urls:
+        logger.debug("Skipping already processed URL: %s", resource_url)
         return 0  # Skip if already processed
-    
+
     processed_urls.add(resource_url)  # Mark the resource as processed
 
     try:
@@ -70,12 +71,16 @@ def get_size():
         resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
         resource_urls = []
 
+        # Prepare the list of resources to fetch, checking for duplicates before adding to the list
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
                 if resource_url:
                     full_url = urljoin(url, resource_url)
-                    resource_urls.append(full_url)
+                    # Only add URL to list if it hasn't been processed already
+                    if full_url not in processed_urls:
+                        processed_urls.add(full_url)
+                        resource_urls.append(full_url)
 
         # Use ThreadPoolExecutor to fetch resources concurrently
         with concurrent.futures.ThreadPoolExecutor() as executor:
