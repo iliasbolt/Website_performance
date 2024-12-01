@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import logging
 import concurrent.futures
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -19,7 +20,7 @@ def add_cors_headers(response):
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
-# Helper function to fetch the resource size
+# Helper function to fetch resource size
 def fetch_resource_size(resource_url):
     try:
         response = requests.get(resource_url, timeout=5, stream=True)
@@ -49,7 +50,7 @@ def get_size():
         domain = urlparse(url).netloc
         resource_tags = {'img': 'src', 'link': 'href', 'script': 'src'}
 
-        images, css, js, external_resources = [], [], [], []
+        images, css, js, fonts, other_resources = [], [], [], [], []
 
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
@@ -62,9 +63,15 @@ def get_size():
                         css.append(full_url)
                     elif tag == 'script':
                         js.append(full_url)
-                    if domain not in urlparse(full_url).netloc:
-                        external_resources.append(full_url)
+                    else:
+                        other_resources.append(full_url)
 
+        # Extract fonts and other resources
+        for link in soup.find_all('link'):
+            href = link.get('href')
+            if href and any(href.endswith(ext) for ext in ['.woff', '.woff2', '.ttf', '.eot']):
+                fonts.append(urljoin(url, href))
+        
         css_background_images = []
         for css_url in css:
             try:
@@ -80,7 +87,7 @@ def get_size():
         images.extend(css_background_images)
         images = list(set(images))  # Remove duplicates
 
-        all_resources = images + css + js + external_resources
+        all_resources = images + css + js + fonts + other_resources
         all_resource_sizes = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
             sizes = list(executor.map(fetch_resource_size, all_resources))
@@ -89,16 +96,18 @@ def get_size():
         images_size = sum(all_resource_sizes[url] for url in images)
         css_size = sum(all_resource_sizes[url] for url in css)
         js_size = sum(all_resource_sizes[url] for url in js)
-        external_size = sum(all_resource_sizes[url] for url in external_resources)
+        fonts_size = sum(all_resource_sizes[url] for url in fonts)
+        other_size = sum(all_resource_sizes[url] for url in other_resources)
 
-        total_size = html_size_bytes + images_size + css_size + js_size + external_size
+        total_size = html_size_bytes + images_size + css_size + js_size + fonts_size + other_size
 
         response_data = {
             "html_size_mb": round(html_size_bytes / (1024 * 1024), 2),
             "images_size_mb": round(images_size / (1024 * 1024), 2),
             "css_size_mb": round(css_size / (1024 * 1024), 2),
             "js_size_mb": round(js_size / (1024 * 1024), 2),
-            "external_size_mb": round(external_size / (1024 * 1024), 2),
+            "fonts_size_mb": round(fonts_size / (1024 * 1024), 2),
+            "other_size_mb": round(other_size / (1024 * 1024), 2),
             "total_size_mb": round(total_size / (1024 * 1024), 2),
         }
 
