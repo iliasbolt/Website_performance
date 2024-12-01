@@ -40,7 +40,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
                 <ul>`;
                 
             // List the image resources
-            data.images.forEach(image => {
+            /*data.images.forEach(image => {
                 resultHTML += `<li><a href="${image.url}" target="_blank">${image.url}</a> - ${image.size} bytes</li>`;
             });
 
@@ -74,7 +74,7 @@ document.getElementById('sizeCheckerForm').addEventListener('submit', async (e) 
             resultHTML += `</ul>`;
             
             // Update the result container with the HTML content
-            //document.getElementById('result').innerHTML = resultHTML;
+            //document.getElementById('result').innerHTML = resultHTML;*/
         }
     } catch (error) {
         // Handle any unexpected errors
