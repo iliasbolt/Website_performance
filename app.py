@@ -101,5 +101,3 @@ def get_size(url):
         logger.error("Unexpected error: %s", e)
         return {"error": f"Unexpected error: {str(e)}"}
 
-if __name__ == '__main__':
-    app.run(debug=True)
