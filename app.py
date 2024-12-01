@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import logging
+import concurrent.futures
 
 app = Flask(__name__)
 CORS(app)
@@ -17,6 +18,17 @@ def add_cors_headers(response):
     response.headers.add("Access-Control-Allow-Headers", "*")
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
+
+# Helper function to fetch resource size
+def fetch_resource_size(resource_url):
+    try:
+        resource_response = requests.get(resource_url, timeout=5, stream=True)
+        resource_response.raise_for_status()
+        # Calculate the size of the resource
+        return sum(len(chunk) for chunk in resource_response.iter_content(1024))
+    except requests.RequestException as e:
+        logger.warning("Failed to fetch %s: %s", resource_url, e)
+        return 0
 
 @app.route('/get_size', methods=['POST'])
 def get_size():
@@ -46,19 +58,21 @@ def get_size():
         soup = BeautifulSoup(html_content, 'html.parser')
         total_size_bytes = html_size_bytes
 
+        # Prepare list of resource URLs to fetch concurrently
         resource_tags = {'img': 'src', 'script': 'src', 'link': 'href'}
+        resource_urls = []
+
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
                 if resource_url:
                     full_url = urljoin(url, resource_url)
-                    try:
-                        resource_response = requests.get(full_url, timeout=5, stream=True)
-                        resource_response.raise_for_status()
-                        total_size_bytes += sum(len(chunk) for chunk in resource_response.iter_content(1024))
-                        logger.debug("Fetched resource %s", full_url)
-                    except requests.RequestException as e:
-                        logger.warning("Failed to fetch %s: %s", full_url, e)
+                    resource_urls.append(full_url)
+
+        # Use ThreadPoolExecutor to fetch resources concurrently
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            resource_sizes = list(executor.map(fetch_resource_size, resource_urls))
+            total_size_bytes += sum(resource_sizes)
 
         # Convert sizes to MB
         html_size_mb = round(html_size_bytes / (1024 * 1024), 2)
